@@ -112,7 +112,10 @@ func (q *Queue) Next() (interface{}, bool) {
 		ok = true
 		data = element.Data
 	}
-	if q.queue.Len() == 0 && len(q.Signal) > 0 {
+
+	if q.queue.Len() > 0 {
+		q.SendSignal()
+	} else if len(q.Signal) > 0 {
 		<-q.Signal
 	}
 
