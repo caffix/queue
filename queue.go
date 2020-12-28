@@ -83,18 +83,27 @@ func (q *Queue) AppendPriority(data interface{}, priority int) {
 }
 
 func (q *Queue) append(data interface{}, priority int) {
-	element := new(queueElement)
-
-	element.Data = data
-	element.priority = priority
 	q.Lock()
+	defer q.Unlock()
+
+	element := &queueElement{
+		Data:     data,
+		priority: priority,
+	}
+
 	heap.Push(&q.queue, element)
-	q.Unlock()
-	q.SendSignal()
+	q.sendSignal()
 }
 
 // SendSignal puts an element on the queue signal channel.
 func (q *Queue) SendSignal() {
+	q.Lock()
+	defer q.Unlock()
+
+	q.sendSignal()
+}
+
+func (q *Queue) sendSignal() {
 	if len(q.Signal) == 0 {
 		q.Signal <- struct{}{}
 	}
@@ -114,7 +123,7 @@ func (q *Queue) Next() (interface{}, bool) {
 	}
 
 	if q.queue.Len() > 0 {
-		q.SendSignal()
+		q.sendSignal()
 	} else if len(q.Signal) > 0 {
 		<-q.Signal
 	}
