@@ -10,85 +10,70 @@ import (
 )
 
 func TestAppend(t *testing.T) {
-	queue := NewQueue()
+	q := NewQueue()
 
-	queue.Append("testing")
-	if queue.Empty() || queue.Len() == 0 {
+	q.Append("testing")
+	if q.Empty() || q.Len() == 0 {
 		t.Errorf("The element was not appended to the queue")
 	}
 
-	if e, _ := queue.Next(); e != "testing" {
+	if e, _ := q.Next(); e != "testing" {
 		t.Errorf("The element was appended as %s instead of 'testing'", e.(string))
 	}
 }
 
 func TestAppendPriority(t *testing.T) {
-	queue := NewQueue()
+	q := NewQueue()
 
-	queue.AppendPriority("value1", PriorityLow)
-	queue.AppendPriority("value2", PriorityHigh)
+	q.AppendPriority("value1", PriorityLow)
+	q.AppendPriority("value2", PriorityHigh)
 
-	if e, _ := queue.Next(); e != "value2" {
+	if e, _ := q.Next(); e != "value2" {
 		t.Errorf("The lower priority element was returned instead")
 	}
 }
 
-func TestSendSignal(t *testing.T) {
-	queue := NewQueue()
+func TestSignal(t *testing.T) {
+	q := NewQueue()
 
-	queue.SendSignal()
+	q.Append("element")
 	select {
-	case <-queue.Signal:
-	default:
-		t.Errorf("Explicitly calling SendSignal did not populate the channel")
-	}
-
-	queue.Append("element")
-	select {
-	case <-queue.Signal:
+	case <-q.Signal():
 	default:
 		t.Errorf("Use of the Append method did not populate the channel")
-	}
-
-	queue.SendSignal()
-	queue.Next()
-	select {
-	case <-queue.Signal:
-		t.Errorf("Using the Next method on the last element did not empty the channel")
-	default:
 	}
 }
 
 func TestNext(t *testing.T) {
-	queue := NewQueue()
+	q := NewQueue()
 	values := []string{"test1", "test2", "test3", "test4"}
 	priorities := []int{90, 75, 30, 5}
 
 	for i, v := range values {
-		queue.AppendPriority(v, priorities[i])
+		q.AppendPriority(v, priorities[i])
 	}
 
 	for _, v := range values {
-		if e, b := queue.Next(); b && e.(string) != v {
+		if e, b := q.Next(); b && e.(string) != v {
 			t.Errorf("Returned %s instead of %s", e.(string), v)
 		}
 	}
 
-	if _, b := queue.Next(); b != false {
+	if _, b := q.Next(); b != false {
 		t.Errorf("An empty Queue claimed to return another element")
 	}
 }
 
 func TestProcess(t *testing.T) {
-	queue := NewQueue()
+	q := NewQueue()
 	set := stringset.New("element1", "element2")
 
 	for e := range set {
-		queue.Append(e)
+		q.Append(e)
 	}
 
 	ret := stringset.New()
-	queue.Process(func(e interface{}) {
+	q.Process(func(e interface{}) {
 		if s, ok := e.(string); ok {
 			ret.Insert(s)
 		}
@@ -99,33 +84,33 @@ func TestProcess(t *testing.T) {
 		t.Errorf("Not all elements of the queue were provided")
 	}
 
-	if queue.Len() > 0 {
+	if q.Len() > 0 {
 		t.Errorf("The queue was not empty after executing the Process method")
 	}
 }
 
 func TestEmpty(t *testing.T) {
-	queue := NewQueue()
+	q := NewQueue()
 
-	if !queue.Empty() {
+	if !q.Empty() {
 		t.Errorf("A new Queue did not claim to be empty")
 	}
 
-	queue.Append("testing")
-	if queue.Empty() {
+	q.Append("testing")
+	if q.Empty() {
 		t.Errorf("A queue with elements claimed to be empty")
 	}
 }
 
 func TestLen(t *testing.T) {
-	queue := NewQueue()
+	q := NewQueue()
 
-	if l := queue.Len(); l != 0 {
+	if l := q.Len(); l != 0 {
 		t.Errorf("A new Queue returned a length of %d instead of zero", l)
 	}
 
-	queue.Append("testing")
-	if l := queue.Len(); l != 1 {
+	q.Append("testing")
+	if l := q.Len(); l != 1 {
 		t.Errorf("A Queue with elements returned a length of %d instead of one", l)
 	}
 }

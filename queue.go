@@ -17,6 +17,30 @@ const (
 	PriorityCritical
 )
 
+// Queue implements a FIFO data structure that can support priorities.
+type Queue interface {
+	// Append adds the data to the Queue at priority level PriorityNormal.
+	Append(data interface{})
+
+	// AppendPriority adds the data to the Queue with respect to priority.
+	AppendPriority(data interface{}, priority int)
+
+	// Signal returns the Queue signal channel.
+	Signal() <-chan struct{}
+
+	// Next returns the data at the front of the Queue.
+	Next() (interface{}, bool)
+
+	// Process will execute the callback parameter for each element on the Queue.
+	Process(callback func(interface{}))
+
+	// Empty returns true if the Queue is empty.
+	Empty() bool
+
+	// Len returns the current length of the Queue.
+	Len() int
+}
+
 type queueElement struct {
 	Data     interface{}
 	priority int
@@ -60,29 +84,28 @@ func (pq *priorityQueue) Pop() interface{} {
 	return element
 }
 
-// Queue implements a FIFO data structure that can support priorities.
-type Queue struct {
+type queue struct {
 	sync.Mutex
-	Signal chan struct{}
+	signal chan struct{}
 	queue  priorityQueue
 }
 
-// NewQueue return an initialized Queue.
-func NewQueue() *Queue {
-	return &Queue{Signal: make(chan struct{}, 2)}
+// NewQueue returns an initialized Queue.
+func NewQueue() Queue {
+	return &queue{signal: make(chan struct{}, 2)}
 }
 
-// Append adds the data to the Queue at priority level PriorityNormal.
-func (q *Queue) Append(data interface{}) {
+// Append implements the Queue interface.
+func (q *queue) Append(data interface{}) {
 	q.append(data, PriorityNormal)
 }
 
-// AppendPriority adds the data to the Queue with respect to priority.
-func (q *Queue) AppendPriority(data interface{}, priority int) {
+// AppendPriority implements the Queue interface.
+func (q *queue) AppendPriority(data interface{}, priority int) {
 	q.append(data, priority)
 }
 
-func (q *Queue) append(data interface{}, priority int) {
+func (q *queue) append(data interface{}, priority int) {
 	q.Lock()
 	defer q.Unlock()
 
@@ -95,22 +118,19 @@ func (q *Queue) append(data interface{}, priority int) {
 	q.sendSignal()
 }
 
-// SendSignal puts an element on the queue signal channel.
-func (q *Queue) SendSignal() {
-	q.Lock()
-	defer q.Unlock()
-
-	q.sendSignal()
+// Signal implements the Queue interface.
+func (q *queue) Signal() <-chan struct{} {
+	return q.signal
 }
 
-func (q *Queue) sendSignal() {
-	if len(q.Signal) == 0 {
-		q.Signal <- struct{}{}
+func (q *queue) sendSignal() {
+	if len(q.signal) == 0 {
+		q.signal <- struct{}{}
 	}
 }
 
-// Next returns the data at the front of the Queue.
-func (q *Queue) Next() (interface{}, bool) {
+// Next implements the Queue interface.
+func (q *queue) Next() (interface{}, bool) {
 	q.Lock()
 	defer q.Unlock()
 
@@ -124,15 +144,13 @@ func (q *Queue) Next() (interface{}, bool) {
 
 	if q.queue.Len() > 0 {
 		q.sendSignal()
-	} else if len(q.Signal) > 0 {
-		<-q.Signal
 	}
 
 	return data, ok
 }
 
-// Process will execute the callback parameter for each element on the Queue.
-func (q *Queue) Process(callback func(interface{})) {
+// Process implements the Queue interface.
+func (q *queue) Process(callback func(interface{})) {
 	element, ok := q.Next()
 
 	for ok {
@@ -141,13 +159,13 @@ func (q *Queue) Process(callback func(interface{})) {
 	}
 }
 
-// Empty returns true if the Queue is empty.
-func (q *Queue) Empty() bool {
+// Empty implements the Queue interface.
+func (q *queue) Empty() bool {
 	return q.Len() == 0
 }
 
-// Len returns the current length of the Queue
-func (q *Queue) Len() int {
+// Len implements the Queue interface.
+func (q *queue) Len() int {
 	q.Lock()
 	defer q.Unlock()
 
