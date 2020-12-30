@@ -7,6 +7,7 @@ import (
 	"container/heap"
 	"sort"
 	"sync"
+	"time"
 )
 
 // The priority levels for the priority Queue.
@@ -42,9 +43,10 @@ type Queue interface {
 }
 
 type queueElement struct {
-	Data     interface{}
-	priority int
-	index    int
+	Data      interface{}
+	priority  int
+	timestamp time.Time
+	index     int
 }
 
 type priorityQueue []*queueElement
@@ -54,7 +56,13 @@ func (pq priorityQueue) Len() int { return len(pq) }
 
 // Less returns true when i has a higher priority than j.
 func (pq priorityQueue) Less(i, j int) bool {
-	return pq[i].priority > pq[j].priority
+	if pq[i].priority > pq[j].priority {
+		return true
+	}
+	if pq[i].priority == pq[j].priority && pq[i].timestamp.Before(pq[j].timestamp) {
+		return true
+	}
+	return false
 }
 
 // Swap exchanges the ith and jth element of the priority queue.
@@ -68,6 +76,7 @@ func (pq priorityQueue) Swap(i, j int) {
 func (pq *priorityQueue) Push(x interface{}) {
 	n := len(*pq)
 	element := x.(*queueElement)
+	element.timestamp = time.Now()
 	element.index = n
 	*pq = append(*pq, element)
 	sort.Sort(*pq)
