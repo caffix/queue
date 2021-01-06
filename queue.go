@@ -133,7 +133,13 @@ func (q *queue) Signal() <-chan struct{} {
 }
 
 func (q *queue) sendSignal() {
-	if len(q.signal) == 0 {
+	// Send the signal up to two times to avoid a race
+	// allowing data to remain on the queue without a signal
+	for i := 0; i < 2; i++ {
+		if len(q.signal) > 1 {
+			break
+		}
+
 		q.signal <- struct{}{}
 	}
 }
