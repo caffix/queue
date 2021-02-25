@@ -128,3 +128,45 @@ func TestLen(t *testing.T) {
 		t.Errorf("A Queue with elements returned a length of %d instead of one", l)
 	}
 }
+
+func BenchmarkAppend(b *testing.B) {
+	q := NewQueue()
+
+	for i := 0; i < b.N; i++ {
+		q.Append("testing")
+	}
+	if e, _ := q.Next(); e != "testing" {
+		b.Errorf("The element was appended as %s instead of 'testing'", e.(string))
+	}
+	if want, have := b.N-1, q.Len(); want != have {
+		b.Errorf("Expected %d elements left on the queue, got %d", want, have)
+	}
+}
+
+func BenchmarkAppendPriority(b *testing.B) {
+	q := NewQueue()
+
+	values := []struct {
+		token    string
+		priority int
+	}{
+		{"valueLow", PriorityLow},
+		{"valueNormal", PriorityNormal},
+		{"valueHigh", PriorityHigh},
+		{"valueCritical", PriorityCritical},
+	}
+	topIdx := -1
+	for i := 0; i < b.N; i++ {
+		idx := i % len(values)
+		q.AppendPriority(values[idx].token, values[idx].priority)
+		if topIdx < idx {
+			topIdx = idx
+		}
+	}
+	if e, _ := q.Next(); topIdx > -1 && e != values[topIdx].token {
+		b.Errorf("The element was appended as %s instead of %s", e.(string), values[topIdx].token)
+	}
+	if want, have := b.N-1, q.Len(); want != have {
+		b.Errorf("Expected %d elements left on the queue, got %d", want, have)
+	}
+}
