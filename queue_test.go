@@ -26,10 +26,24 @@ func TestAppendPriority(t *testing.T) {
 	q := NewQueue()
 
 	q.AppendPriority("value1", PriorityLow)
-	q.AppendPriority("value2", PriorityHigh)
+	q.AppendPriority("value2", PriorityNormal)
+	q.AppendPriority("value3", PriorityHigh)
+	q.AppendPriority("value4", PriorityCritical)
+	q.AppendPriority("value5", PriorityLow)
+	q.AppendPriority("value6", PriorityNormal)
+	q.AppendPriority("value7", PriorityHigh)
+	q.AppendPriority("value8", PriorityCritical)
 
-	if e, _ := q.Next(); e != "value2" {
-		t.Errorf("The lower priority element was returned instead")
+	expected := []string{
+		"value4", "value8",
+		"value3", "value7",
+		"value2", "value6",
+		"value1", "value5",
+	}
+	for _, want := range expected {
+		if have, _ := q.Next(); want != have {
+			t.Errorf("Element popped out of priority order, expected '%s' but got '%s'", want, have)
+		}
 	}
 }
 
