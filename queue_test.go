@@ -30,6 +30,10 @@ func TestAppend(t *testing.T) {
 			t.Errorf("Element popped out of insertion order, expected '%s' but got '%s'", want, have)
 		}
 	}
+
+	if !q.Empty() {
+		t.Errorf("Expected the queue to be empty after popping inserted elements, but it still has %d elements", q.Len())
+	}
 }
 
 func TestAppendPriority(t *testing.T) {
@@ -54,6 +58,10 @@ func TestAppendPriority(t *testing.T) {
 		if have, _ := q.Next(); want != have {
 			t.Errorf("Element popped out of priority order, expected '%s' but got '%s'", want, have)
 		}
+	}
+
+	if !q.Empty() {
+		t.Errorf("Expected the queue to be empty after popping inserted elements, but it still has %d elements", q.Len())
 	}
 }
 
