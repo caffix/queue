@@ -1,4 +1,4 @@
-// Copyright 2017 Jeff Foley. All rights reserved.
+// Copyright 2017-2021 Jeff Foley. All rights reserved.
 // Use of this source code is governed by Apache 2 LICENSE that can be found in the LICENSE file.
 
 package queue
@@ -18,7 +18,7 @@ func TestAppend(t *testing.T) {
 		values[i] = fmt.Sprintf("value%d", i)
 	}
 
-	// At a a fixed priority, the queue should maintain insertion order (FIFO)
+	// At a fixed priority, the queue should maintain insertion order (FIFO)
 	for _, v := range values {
 		q.Append(v)
 	}
