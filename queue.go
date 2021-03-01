@@ -5,7 +5,6 @@ package queue
 
 import (
 	"container/heap"
-	"sort"
 	"sync"
 	"time"
 )
@@ -79,7 +78,6 @@ func (pq *priorityQueue) Push(x interface{}) {
 	element.timestamp = time.Now()
 	element.index = n
 	*pq = append(*pq, element)
-	sort.Sort(*pq)
 }
 
 // Pop removes the next element from the queue in priority order.

@@ -26,10 +26,24 @@ func TestAppendPriority(t *testing.T) {
 	q := NewQueue()
 
 	q.AppendPriority("value1", PriorityLow)
-	q.AppendPriority("value2", PriorityHigh)
+	q.AppendPriority("value2", PriorityNormal)
+	q.AppendPriority("value3", PriorityHigh)
+	q.AppendPriority("value4", PriorityCritical)
+	q.AppendPriority("value5", PriorityLow)
+	q.AppendPriority("value6", PriorityNormal)
+	q.AppendPriority("value7", PriorityHigh)
+	q.AppendPriority("value8", PriorityCritical)
 
-	if e, _ := q.Next(); e != "value2" {
-		t.Errorf("The lower priority element was returned instead")
+	expected := []string{
+		"value4", "value8",
+		"value3", "value7",
+		"value2", "value6",
+		"value1", "value5",
+	}
+	for _, want := range expected {
+		if have, _ := q.Next(); want != have {
+			t.Errorf("Element popped out of priority order, expected '%s' but got '%s'", want, have)
+		}
 	}
 }
 
@@ -112,5 +126,47 @@ func TestLen(t *testing.T) {
 	q.Append("testing")
 	if l := q.Len(); l != 1 {
 		t.Errorf("A Queue with elements returned a length of %d instead of one", l)
+	}
+}
+
+func BenchmarkAppend(b *testing.B) {
+	q := NewQueue()
+
+	for i := 0; i < b.N; i++ {
+		q.Append("testing")
+	}
+	if e, _ := q.Next(); e != "testing" {
+		b.Errorf("The element was appended as %s instead of 'testing'", e.(string))
+	}
+	if want, have := b.N-1, q.Len(); want != have {
+		b.Errorf("Expected %d elements left on the queue, got %d", want, have)
+	}
+}
+
+func BenchmarkAppendPriority(b *testing.B) {
+	q := NewQueue()
+
+	values := []struct {
+		token    string
+		priority int
+	}{
+		{"valueLow", PriorityLow},
+		{"valueNormal", PriorityNormal},
+		{"valueHigh", PriorityHigh},
+		{"valueCritical", PriorityCritical},
+	}
+	topIdx := -1
+	for i := 0; i < b.N; i++ {
+		idx := i % len(values)
+		q.AppendPriority(values[idx].token, values[idx].priority)
+		if topIdx < idx {
+			topIdx = idx
+		}
+	}
+	if e, _ := q.Next(); topIdx > -1 && e != values[topIdx].token {
+		b.Errorf("The element was appended as %s instead of %s", e.(string), values[topIdx].token)
+	}
+	if want, have := b.N-1, q.Len(); want != have {
+		b.Errorf("Expected %d elements left on the queue, got %d", want, have)
 	}
 }
