@@ -4,6 +4,7 @@
 package queue
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/caffix/stringset"
@@ -12,13 +13,22 @@ import (
 func TestAppend(t *testing.T) {
 	q := NewQueue()
 
-	q.Append("testing")
-	if q.Empty() || q.Len() == 0 {
-		t.Errorf("The element was not appended to the queue")
+	values := make([]string, 16)
+	for i := 0; i < len(values); i++ {
+		values[i] = fmt.Sprintf("value%d", i)
 	}
 
-	if e, _ := q.Next(); e != "testing" {
-		t.Errorf("The element was appended as %s instead of 'testing'", e.(string))
+	// At a a fixed priority, the queue should maintain insertion order (FIFO)
+	for _, v := range values {
+		q.Append(v)
+	}
+	if q.Empty() || q.Len() != len(values) {
+		t.Errorf("Expected the queue to contain %d elements, got %d", q.Len(), len(values))
+	}
+	for _, want := range values {
+		if have, _ := q.Next(); want != have {
+			t.Errorf("Element popped out of insertion order, expected '%s' but got '%s'", want, have)
+		}
 	}
 }
 
