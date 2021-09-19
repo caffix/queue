@@ -99,12 +99,15 @@ func TestNext(t *testing.T) {
 func TestProcess(t *testing.T) {
 	q := NewQueue()
 	set := stringset.New("element1", "element2")
+	defer set.Close()
 
-	for e := range set {
+	for _, e := range set.Slice() {
 		q.Append(e)
 	}
 
 	ret := stringset.New()
+	defer ret.Close()
+
 	q.Process(func(e interface{}) {
 		if s, ok := e.(string); ok {
 			ret.Insert(s)
