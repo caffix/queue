@@ -13,9 +13,9 @@ import (
 func TestAppend(t *testing.T) {
 	q := NewQueue()
 
-	values := make([]string, 16)
-	for i := 0; i < len(values); i++ {
-		values[i] = fmt.Sprintf("value%d", i)
+	var values []string
+	for i := 0; i < 25; i++ {
+		values = append(values, fmt.Sprintf("value%d", i))
 	}
 
 	// At a fixed priority, the queue should maintain insertion order (FIFO)
@@ -26,7 +26,7 @@ func TestAppend(t *testing.T) {
 		t.Errorf("Expected the queue to contain %d elements, got %d", q.Len(), len(values))
 	}
 	for _, want := range values {
-		if have, _ := q.Next(); want != have {
+		if have, ok := q.Next(); !ok || want != have.(string) {
 			t.Errorf("Element popped out of insertion order, expected '%s' but got '%s'", want, have)
 		}
 	}
