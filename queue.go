@@ -76,7 +76,6 @@ func (pq priorityQueue) Swap(i, j int) {
 func (pq *priorityQueue) Push(x interface{}) {
 	n := len(*pq)
 	element := x.(*queueElement)
-	element.timestamp = time.Now()
 	element.index = n
 	*pq = append(*pq, element)
 }
@@ -95,12 +94,15 @@ func (pq *priorityQueue) Pop() interface{} {
 type queue struct {
 	sync.Mutex
 	signal chan struct{}
-	queue  priorityQueue
+	pq     priorityQueue
 }
 
 // NewQueue returns an initialized Queue.
 func NewQueue() Queue {
-	return &queue{signal: make(chan struct{}, 100)}
+	q := &queue{signal: make(chan struct{}, 100)}
+
+	heap.Init(&q.pq)
+	return q
 }
 
 // Append implements the Queue interface.
@@ -118,11 +120,12 @@ func (q *queue) append(data interface{}, priority int) {
 	defer q.Unlock()
 
 	element := &queueElement{
-		Data:     data,
-		priority: priority,
+		Data:      data,
+		priority:  priority,
+		timestamp: time.Now(),
 	}
 
-	heap.Push(&q.queue, element)
+	heap.Push(&q.pq, element)
 	q.sendSignal()
 }
 
@@ -135,20 +138,29 @@ func (q *queue) sendSignal() {
 	go func() { q.signal <- struct{}{} }()
 }
 
+func (q *queue) drain() {
+loop:
+	for {
+		select {
+		case <-q.signal:
+		default:
+			break loop
+		}
+	}
+}
+
 // Next implements the Queue interface.
 func (q *queue) Next() (interface{}, bool) {
 	q.Lock()
 	defer q.Unlock()
 
-	var ok bool
-	var data interface{}
-	if q.queue.Len() > 0 {
-		element := heap.Pop(&q.queue).(*queueElement)
-		ok = true
-		data = element.Data
+	if q.pq.Len() == 0 {
+		q.drain()
+		return nil, false
 	}
 
-	return data, ok
+	element := heap.Pop(&q.pq).(*queueElement)
+	return element.Data, true
 }
 
 // Process implements the Queue interface.
@@ -171,5 +183,5 @@ func (q *queue) Len() int {
 	q.Lock()
 	defer q.Unlock()
 
-	return q.queue.Len()
+	return q.pq.Len()
 }
