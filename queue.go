@@ -100,7 +100,7 @@ type queue struct {
 
 // NewQueue returns an initialized Queue.
 func NewQueue() Queue {
-	return &queue{signal: make(chan struct{}, 2)}
+	return &queue{signal: make(chan struct{}, 100)}
 }
 
 // Append implements the Queue interface.
@@ -132,14 +132,7 @@ func (q *queue) Signal() <-chan struct{} {
 }
 
 func (q *queue) sendSignal() {
-	// Send the signal up to two times to avoid a race
-	// allowing data to remain on the queue without a signal
-	for i := 0; i < 2; i++ {
-		select {
-		case q.signal <- struct{}{}:
-		default:
-		}
-	}
+	go func() { q.signal <- struct{}{} }()
 }
 
 // Next implements the Queue interface.
@@ -153,10 +146,6 @@ func (q *queue) Next() (interface{}, bool) {
 		element := heap.Pop(&q.queue).(*queueElement)
 		ok = true
 		data = element.Data
-	}
-
-	if q.queue.Len() > 0 {
-		q.sendSignal()
 	}
 
 	return data, ok

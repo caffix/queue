@@ -7,6 +7,7 @@ package queue
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/caffix/stringset"
 )
@@ -70,6 +71,7 @@ func TestSignal(t *testing.T) {
 	q := NewQueue()
 
 	q.Append("element")
+	time.Sleep(500 * time.Millisecond)
 	select {
 	case <-q.Signal():
 	default:
