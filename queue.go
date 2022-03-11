@@ -141,17 +141,7 @@ func (q *queue) Signal() <-chan struct{} {
 }
 
 func (q *queue) sendSignal() {
-	qlen := q.pq.Len()
-	slen := len(q.signal)
-
-	var sent bool
-	for i := 0; (slen+i) < qlen && (slen+i) < signalChanLen; i++ {
-		q.signal <- struct{}{}
-		sent = true
-	}
-	if !sent {
-		go func() { q.signal <- struct{}{} }()
-	}
+	go func() { q.signal <- struct{}{} }()
 }
 
 func (q *queue) drain() {
