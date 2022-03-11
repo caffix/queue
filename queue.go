@@ -18,7 +18,7 @@ const (
 	PriorityCritical
 )
 
-const signalChanLen int = 1000
+const signalChanLen int = 10
 
 // Queue implements a FIFO data structure that can support priorities.
 type Queue interface {
