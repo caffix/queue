@@ -80,7 +80,7 @@ func TestSignal(t *testing.T) {
 		}
 	}()
 
-	timer := time.NewTimer(3 * time.Second)
+	timer := time.NewTimer(10 * time.Second)
 	defer timer.Stop()
 loop:
 	for i := 0; i < times*2; i++ {
