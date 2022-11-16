@@ -69,21 +69,27 @@ func TestAppendPriority(t *testing.T) {
 
 func TestSignal(t *testing.T) {
 	q := NewQueue()
-	times := signalChanLen * 2
+	times := 1000
 
+	go func() {
+		for i := 0; i < times; i++ {
+			q.Append("element")
+		}
+	}()
 	for i := 0; i < times; i++ {
 		q.Append("element")
 	}
-
-	for i := 0; i < times; i++ {
-		if i == signalChanLen {
-			time.Sleep(500 * time.Millisecond)
-		}
+loop:
+	for i := 0; i < times*2; i++ {
 		select {
 		case <-q.Signal():
 			_, _ = q.Next()
 		default:
 			t.Errorf("Use of the Append method did not populate the channel enough")
+			break loop
+		}
+		if i > 1500 {
+			time.Sleep(time.Millisecond)
 		}
 	}
 }
@@ -130,7 +136,6 @@ func TestProcess(t *testing.T) {
 	if set.Len() > 0 {
 		t.Errorf("Not all elements of the queue were provided")
 	}
-
 	if q.Len() > 0 {
 		t.Errorf("The queue was not empty after executing the Process method")
 	}

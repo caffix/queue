@@ -18,8 +18,6 @@ const (
 	PriorityCritical
 )
 
-const signalChanLen int = 10
-
 // Queue implements a FIFO data structure that can support priorities.
 type Queue interface {
 	// Append adds the data to the Queue at priority level PriorityNormal.
@@ -95,17 +93,13 @@ func (pq *priorityQueue) Pop() interface{} {
 
 type queue struct {
 	sync.Mutex
-	siglen int
 	signal chan struct{}
 	pq     priorityQueue
 }
 
 // NewQueue returns an initialized Queue.
 func NewQueue() Queue {
-	q := &queue{
-		siglen: signalChanLen,
-		signal: make(chan struct{}, signalChanLen),
-	}
+	q := &queue{signal: make(chan struct{}, 1)}
 
 	heap.Init(&q.pq)
 	return q
@@ -132,16 +126,39 @@ func (q *queue) append(data interface{}, priority int) {
 	}
 
 	heap.Push(&q.pq, element)
-	q.sendSignal()
+
+	select {
+	case q.signal <- struct{}{}:
+	default:
+	}
 }
 
 // Signal implements the Queue interface.
 func (q *queue) Signal() <-chan struct{} {
+	q.prepSignal()
 	return q.signal
 }
 
-func (q *queue) sendSignal() {
-	go func() { q.signal <- struct{}{} }()
+func (q *queue) prepSignal() {
+	q.Lock()
+	defer q.Unlock()
+
+	var send bool
+	select {
+	case _, send = <-q.signal:
+	default:
+	}
+
+	if !send && q.pq.Len() > 0 {
+		send = true
+	}
+
+	if send {
+		select {
+		case q.signal <- struct{}{}:
+		default:
+		}
+	}
 }
 
 func (q *queue) drain() {
