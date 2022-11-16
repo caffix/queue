@@ -71,25 +71,25 @@ func TestSignal(t *testing.T) {
 	q := NewQueue()
 	times := 1000
 
+	for i := 0; i < times; i++ {
+		q.Append("element")
+	}
 	go func() {
 		for i := 0; i < times; i++ {
 			q.Append("element")
 		}
 	}()
-	for i := 0; i < times; i++ {
-		q.Append("element")
-	}
+
+	timer := time.NewTimer(3 * time.Second)
+	defer timer.Stop()
 loop:
 	for i := 0; i < times*2; i++ {
 		select {
 		case <-q.Signal():
 			_, _ = q.Next()
-		default:
+		case <-timer.C:
 			t.Errorf("Use of the Append method did not populate the channel enough")
 			break loop
-		}
-		if i > 1500 {
-			time.Sleep(time.Millisecond)
 		}
 	}
 }
