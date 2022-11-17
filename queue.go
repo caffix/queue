@@ -7,7 +7,6 @@ package queue
 import (
 	"container/heap"
 	"sync"
-	"time"
 )
 
 // The priority levels for the priority Queue.
@@ -43,10 +42,9 @@ type Queue interface {
 }
 
 type queueElement struct {
-	Data      interface{}
-	priority  int
-	timestamp time.Time
-	index     int
+	Data     interface{}
+	priority int
+	index    int
 }
 
 type priorityQueue []*queueElement
@@ -56,13 +54,7 @@ func (pq priorityQueue) Len() int { return len(pq) }
 
 // Less returns true when i has a higher priority than j.
 func (pq priorityQueue) Less(i, j int) bool {
-	if pq[i].priority > pq[j].priority {
-		return true
-	}
-	if pq[i].priority == pq[j].priority && pq[i].timestamp.Before(pq[j].timestamp) {
-		return true
-	}
-	return false
+	return pq[i].priority > pq[j].priority
 }
 
 // Swap exchanges the ith and jth element of the priority queue.
@@ -100,7 +92,6 @@ type queue struct {
 // NewQueue returns an initialized Queue.
 func NewQueue() Queue {
 	q := &queue{signal: make(chan struct{}, 1)}
-
 	heap.Init(&q.pq)
 	return q
 }
@@ -119,13 +110,10 @@ func (q *queue) append(data interface{}, priority int) {
 	q.Lock()
 	defer q.Unlock()
 
-	element := &queueElement{
-		Data:      data,
-		priority:  priority,
-		timestamp: time.Now(),
-	}
-
-	heap.Push(&q.pq, element)
+	heap.Push(&q.pq, &queueElement{
+		Data:     data,
+		priority: priority,
+	})
 
 	select {
 	case q.signal <- struct{}{}:
@@ -152,7 +140,6 @@ func (q *queue) prepSignal() {
 	if !send && q.pq.Len() > 0 {
 		send = true
 	}
-
 	if send {
 		select {
 		case q.signal <- struct{}{}:

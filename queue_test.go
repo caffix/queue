@@ -5,7 +5,6 @@
 package queue
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -13,28 +12,24 @@ import (
 )
 
 func TestAppend(t *testing.T) {
+	num := 100
 	q := NewQueue()
 
-	var values []string
-	for i := 0; i < 25; i++ {
-		values = append(values, fmt.Sprintf("value%d", i))
+	for i := 0; i < num; i++ {
+		q.Append("placeholder")
 	}
-
+	if qlen := q.Len(); q.Empty() || qlen != num {
+		t.Errorf("expected the queue to contain %d elements, got %d", num, qlen)
+	}
 	// At a fixed priority, the queue should maintain insertion order (FIFO)
-	for _, v := range values {
-		q.Append(v)
-	}
-	if q.Empty() || q.Len() != len(values) {
-		t.Errorf("Expected the queue to contain %d elements, got %d", q.Len(), len(values))
-	}
-	for _, want := range values {
-		if have, ok := q.Next(); !ok || want != have.(string) {
-			t.Errorf("Element popped out of insertion order, expected '%s' but got '%s'", want, have)
+	for i := 0; i < num; i++ {
+		if _, ok := q.Next(); !ok {
+			t.Errorf("the element at index %d was missing from the queue", i)
+			break
 		}
 	}
-
 	if !q.Empty() {
-		t.Errorf("Expected the queue to be empty after popping inserted elements, but it still has %d elements", q.Len())
+		t.Errorf("expected the queue to be empty after popping inserted elements, but it still has %d elements", q.Len())
 	}
 }
 
@@ -58,12 +53,12 @@ func TestAppendPriority(t *testing.T) {
 	}
 	for _, want := range expected {
 		if have, _ := q.Next(); want != have {
-			t.Errorf("Element popped out of priority order, expected '%s' but got '%s'", want, have)
+			t.Errorf("element popped out of priority order, expected '%s' but got '%s'", want, have)
 		}
 	}
 
 	if !q.Empty() {
-		t.Errorf("Expected the queue to be empty after popping inserted elements, but it still has %d elements", q.Len())
+		t.Errorf("expected the queue to be empty after popping inserted elements, but it still has %d elements", q.Len())
 	}
 }
 
@@ -88,7 +83,7 @@ loop:
 		case <-q.Signal():
 			_, _ = q.Next()
 		case <-timer.C:
-			t.Errorf("Use of the Append method did not populate the channel enough")
+			t.Errorf("use of the Append method did not populate the channel enough")
 			break loop
 		}
 	}
@@ -97,20 +92,19 @@ loop:
 func TestNext(t *testing.T) {
 	q := NewQueue()
 	values := []string{"test1", "test2", "test3", "test4"}
-	priorities := []int{90, 75, 30, 5}
+	priorities := []int{30, 5, 90, 75}
+	expected := []string{"test3", "test4", "test1", "test2"}
 
 	for i, v := range values {
 		q.AppendPriority(v, priorities[i])
 	}
-
-	for _, v := range values {
+	for _, v := range expected {
 		if e, b := q.Next(); b && e.(string) != v {
-			t.Errorf("Returned %s instead of %s", e.(string), v)
+			t.Errorf("returned %s instead of %s", e.(string), v)
 		}
 	}
-
 	if _, b := q.Next(); b != false {
-		t.Errorf("An empty Queue claimed to return another element")
+		t.Errorf("an empty Queue claimed to return another element")
 	}
 }
 
@@ -134,10 +128,10 @@ func TestProcess(t *testing.T) {
 
 	set.Subtract(ret)
 	if set.Len() > 0 {
-		t.Errorf("Not all elements of the queue were provided")
+		t.Errorf("not all elements of the queue were provided")
 	}
 	if q.Len() > 0 {
-		t.Errorf("The queue was not empty after executing the Process method")
+		t.Errorf("the queue was not empty after executing the Process method")
 	}
 }
 
@@ -145,12 +139,12 @@ func TestEmpty(t *testing.T) {
 	q := NewQueue()
 
 	if !q.Empty() {
-		t.Errorf("A new Queue did not claim to be empty")
+		t.Errorf("a new Queue did not claim to be empty")
 	}
 
 	q.Append("testing")
 	if q.Empty() {
-		t.Errorf("A queue with elements claimed to be empty")
+		t.Errorf("a queue with elements claimed to be empty")
 	}
 }
 
@@ -158,12 +152,12 @@ func TestLen(t *testing.T) {
 	q := NewQueue()
 
 	if l := q.Len(); l != 0 {
-		t.Errorf("A new Queue returned a length of %d instead of zero", l)
+		t.Errorf("a new Queue returned a length of %d instead of zero", l)
 	}
 
 	q.Append("testing")
 	if l := q.Len(); l != 1 {
-		t.Errorf("A Queue with elements returned a length of %d instead of one", l)
+		t.Errorf("a Queue with elements returned a length of %d instead of one", l)
 	}
 }
 
@@ -174,10 +168,10 @@ func BenchmarkAppend(b *testing.B) {
 		q.Append("testing")
 	}
 	if e, _ := q.Next(); e != "testing" {
-		b.Errorf("The element was appended as %s instead of 'testing'", e.(string))
+		b.Errorf("the element was appended as %s instead of 'testing'", e.(string))
 	}
 	if want, have := b.N-1, q.Len(); want != have {
-		b.Errorf("Expected %d elements left on the queue, got %d", want, have)
+		b.Errorf("expected %d elements left on the queue, got %d", want, have)
 	}
 }
 
@@ -202,9 +196,9 @@ func BenchmarkAppendPriority(b *testing.B) {
 		}
 	}
 	if e, _ := q.Next(); topIdx > -1 && e != values[topIdx].token {
-		b.Errorf("The element was appended as %s instead of %s", e.(string), values[topIdx].token)
+		b.Errorf("the element was appended as %s instead of %s", e.(string), values[topIdx].token)
 	}
 	if want, have := b.N-1, q.Len(); want != have {
-		b.Errorf("Expected %d elements left on the queue, got %d", want, have)
+		b.Errorf("expected %d elements left on the queue, got %d", want, have)
 	}
 }
