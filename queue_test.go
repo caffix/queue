@@ -1,4 +1,4 @@
-// Copyright © by Jeff Foley 2017-2022. All rights reserved.
+// Copyright © by Jeff Foley 2017-2023. All rights reserved.
 // Use of this source code is governed by Apache 2 LICENSE that can be found in the LICENSE file.
 // SPDX-License-Identifier: Apache-2.0
 
@@ -164,9 +164,12 @@ func TestLen(t *testing.T) {
 func BenchmarkAppend(b *testing.B) {
 	q := NewQueue()
 
+	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		q.Append("testing")
 	}
+	b.StopTimer()
+
 	if e, _ := q.Next(); e != "testing" {
 		b.Errorf("the element was appended as %s instead of 'testing'", e.(string))
 	}
@@ -187,7 +190,9 @@ func BenchmarkAppendPriority(b *testing.B) {
 		{"valueHigh", PriorityHigh},
 		{"valueCritical", PriorityCritical},
 	}
+
 	topIdx := -1
+	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		idx := i % len(values)
 		q.AppendPriority(values[idx].token, values[idx].priority)
@@ -195,10 +200,46 @@ func BenchmarkAppendPriority(b *testing.B) {
 			topIdx = idx
 		}
 	}
+	b.StopTimer()
+
 	if e, _ := q.Next(); topIdx > -1 && e != values[topIdx].token {
 		b.Errorf("the element was appended as %s instead of %s", e.(string), values[topIdx].token)
 	}
 	if want, have := b.N-1, q.Len(); want != have {
 		b.Errorf("expected %d elements left on the queue, got %d", want, have)
+	}
+}
+
+func BenchmarkNext(b *testing.B) {
+	q := NewQueue()
+	for i := 0; i < b.N; i++ {
+		q.Append("testing")
+	}
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		_, _ = q.Next()
+	}
+	b.StopTimer()
+
+	if have := q.Len(); have != 0 {
+		b.Errorf("expected 0 elements left on the queue, got %d", have)
+	}
+}
+
+func BenchmarkProcess(b *testing.B) {
+	q := NewQueue()
+	for i := 0; i < b.N; i++ {
+		q.Append("testing")
+	}
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		q.Process(func(e interface{}) {})
+	}
+	b.StopTimer()
+
+	if have := q.Len(); have != 0 {
+		b.Errorf("expected 0 elements left on the queue, got %d", have)
 	}
 }
