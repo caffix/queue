@@ -89,6 +89,9 @@ func (q *queue) append(data interface{}, priority QueuePriority) {
 
 // Signal implements the Queue interface.
 func (q *queue) Signal() <-chan struct{} {
+	q.Lock()
+	defer q.Unlock()
+
 	q.prepSignal()
 	return q.signal
 }
@@ -101,7 +104,7 @@ func (q *queue) prepSignal() {
 	default:
 	}
 
-	if !send && q.Len() > 0 {
+	if !send && q.lenWithoutLock() > 0 {
 		send = true
 	}
 	if send {
@@ -113,12 +116,11 @@ func (q *queue) prepSignal() {
 }
 
 func (q *queue) drain() {
-loop:
 	for {
 		select {
 		case <-q.signal:
 		default:
-			break loop
+			return
 		}
 	}
 }
@@ -146,6 +148,7 @@ func (q *queue) Next() (interface{}, bool) {
 		return nil, false
 	}
 
+	q.prepSignal()
 	return data, true
 }
 
@@ -169,10 +172,13 @@ func (q *queue) Len() int {
 	q.Lock()
 	defer q.Unlock()
 
+	return q.lenWithoutLock()
+}
+
+func (q *queue) lenWithoutLock() int {
 	qlen := len(q.low)
 	qlen += len(q.norm)
 	qlen += len(q.high)
 	qlen += len(q.crit)
-
 	return qlen
 }
