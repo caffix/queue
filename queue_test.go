@@ -92,7 +92,7 @@ loop:
 func TestNext(t *testing.T) {
 	q := NewQueue()
 	values := []string{"test1", "test2", "test3", "test4"}
-	priorities := []int{30, 5, 90, 75}
+	priorities := []QueuePriority{PriorityNormal, PriorityLow, PriorityCritical, PriorityHigh}
 	expected := []string{"test3", "test4", "test1", "test2"}
 
 	for i, v := range values {
@@ -183,7 +183,7 @@ func BenchmarkAppendPriority(b *testing.B) {
 
 	values := []struct {
 		token    string
-		priority int
+		priority QueuePriority
 	}{
 		{"valueLow", PriorityLow},
 		{"valueNormal", PriorityNormal},

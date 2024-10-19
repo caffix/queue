@@ -5,25 +5,26 @@
 package queue
 
 import (
-	"container/heap"
 	"sync"
 )
 
+type QueuePriority int
+
 // The priority levels for the priority Queue.
 const (
-	PriorityLow int = iota
-	PriorityNormal
-	PriorityHigh
-	PriorityCritical
+	PriorityLow      QueuePriority = 0
+	PriorityNormal   QueuePriority = 1
+	PriorityHigh     QueuePriority = 2
+	PriorityCritical QueuePriority = 3
 )
 
-// Queue implements a FIFO data structure that can support priorities.
+// Queue implements a FIFO data structure that can support a few priorities.
 type Queue interface {
 	// Append adds the data to the Queue at priority level PriorityNormal.
 	Append(data interface{})
 
 	// AppendPriority adds the data to the Queue with respect to priority.
-	AppendPriority(data interface{}, priority int)
+	AppendPriority(data interface{}, priority QueuePriority)
 
 	// Signal returns the Queue signal channel.
 	Signal() <-chan struct{}
@@ -41,59 +42,18 @@ type Queue interface {
 	Len() int
 }
 
-type queueElement struct {
-	Data     interface{}
-	priority int
-	index    int
-}
-
-type priorityQueue []*queueElement
-
-// Len returns the number of elements remaining in the queue.
-func (pq priorityQueue) Len() int { return len(pq) }
-
-// Less returns true when i has a higher priority than j.
-func (pq priorityQueue) Less(i, j int) bool {
-	return pq[i].priority > pq[j].priority
-}
-
-// Swap exchanges the ith and jth element of the priority queue.
-func (pq priorityQueue) Swap(i, j int) {
-	pq[i], pq[j] = pq[j], pq[i]
-	pq[i].index = i
-	pq[j].index = j
-}
-
-// Push adds a new element to the priority queue.
-func (pq *priorityQueue) Push(x interface{}) {
-	n := len(*pq)
-	element := x.(*queueElement)
-	element.index = n
-	*pq = append(*pq, element)
-}
-
-// Pop removes the next element from the queue in priority order.
-func (pq *priorityQueue) Pop() interface{} {
-	old := *pq
-	n := len(old)
-	element := old[n-1]
-	old[n-1] = nil     // avoid memory leak
-	element.index = -1 // for safety
-	*pq = old[:n-1]
-	return element
-}
-
 type queue struct {
 	sync.Mutex
 	signal chan struct{}
-	pq     priorityQueue
+	low    []interface{}
+	norm   []interface{}
+	high   []interface{}
+	crit   []interface{}
 }
 
 // NewQueue returns an initialized Queue.
 func NewQueue() Queue {
-	q := &queue{signal: make(chan struct{}, 1)}
-	heap.Init(&q.pq)
-	return q
+	return &queue{signal: make(chan struct{}, 1)}
 }
 
 // Append implements the Queue interface.
@@ -102,18 +62,24 @@ func (q *queue) Append(data interface{}) {
 }
 
 // AppendPriority implements the Queue interface.
-func (q *queue) AppendPriority(data interface{}, priority int) {
+func (q *queue) AppendPriority(data interface{}, priority QueuePriority) {
 	q.append(data, priority)
 }
 
-func (q *queue) append(data interface{}, priority int) {
+func (q *queue) append(data interface{}, priority QueuePriority) {
 	q.Lock()
 	defer q.Unlock()
 
-	heap.Push(&q.pq, &queueElement{
-		Data:     data,
-		priority: priority,
-	})
+	switch priority {
+	case PriorityLow:
+		q.low = append(q.low, data)
+	case PriorityNormal:
+		q.norm = append(q.norm, data)
+	case PriorityHigh:
+		q.high = append(q.high, data)
+	case PriorityCritical:
+		q.crit = append(q.crit, data)
+	}
 
 	select {
 	case q.signal <- struct{}{}:
@@ -128,16 +94,14 @@ func (q *queue) Signal() <-chan struct{} {
 }
 
 func (q *queue) prepSignal() {
-	q.Lock()
-	defer q.Unlock()
-
 	var send bool
+
 	select {
 	case _, send = <-q.signal:
 	default:
 	}
 
-	if !send && q.pq.Len() > 0 {
+	if !send && q.Len() > 0 {
 		send = true
 	}
 	if send {
@@ -164,13 +128,25 @@ func (q *queue) Next() (interface{}, bool) {
 	q.Lock()
 	defer q.Unlock()
 
-	if q.pq.Len() == 0 {
+	var data interface{}
+	if len(q.crit) > 0 {
+		data = q.crit[0]
+		q.crit = q.crit[1:]
+	} else if len(q.high) > 0 {
+		data = q.high[0]
+		q.high = q.high[1:]
+	} else if len(q.norm) > 0 {
+		data = q.norm[0]
+		q.norm = q.norm[1:]
+	} else if len(q.low) > 0 {
+		data = q.low[0]
+		q.low = q.low[1:]
+	} else {
 		q.drain()
 		return nil, false
 	}
 
-	element := heap.Pop(&q.pq).(*queueElement)
-	return element.Data, true
+	return data, true
 }
 
 // Process implements the Queue interface.
@@ -193,5 +169,10 @@ func (q *queue) Len() int {
 	q.Lock()
 	defer q.Unlock()
 
-	return q.pq.Len()
+	qlen := len(q.low)
+	qlen += len(q.norm)
+	qlen += len(q.high)
+	qlen += len(q.crit)
+
+	return qlen
 }
